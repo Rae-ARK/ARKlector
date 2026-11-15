@@ -21,6 +21,7 @@ import ARKlector.viewmodel.ReaderViewModel;
 /**
  * Entirely programmatic UI — no {@code setContentView(int)} from an XML layout
  * anywhere in this class, per docs/foundational/design.md platform constraints.
+ * MainActivity is just an orcastrator, all the UI logic lives in the ui/
  */
 public final class MainActivity extends AppCompatActivity {
 
