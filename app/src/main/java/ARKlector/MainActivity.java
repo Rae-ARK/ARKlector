@@ -1,40 +1,45 @@
-package ARKlector.ui;
+package ARKlector;
 
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
-import ARKlector.ArklectorApplication;
 import ARKlector.service.ClipboardSource;
+import ARKlector.service.Preferences;
 import ARKlector.service.ReadingQueueService;
+import ARKlector.ui.HomeScreen;
+import ARKlector.ui.SettingsScreen;
 import ARKlector.viewmodel.PlaybackState;
 import ARKlector.viewmodel.ReaderViewModel;
 
 /**
  * Entirely programmatic UI — no {@code setContentView(int)} from an XML layout
  * anywhere in this class, per docs/foundational/design.md platform constraints.
- * MainActivity is just an orcastrator, all the UI logic lives in the ui/
+ * MainActivity is just an orchestrator: all the UI logic lives in the ui/
+ * package ({@link HomeScreen}, {@link SettingsScreen}); this class only owns the
+ * container that swaps the two in and out, and forwards their callbacks down to
+ * the ViewModel/service layer.
  */
 public final class MainActivity extends AppCompatActivity {
 
     private ReaderViewModel viewModel;
-    private TextView statusText;
+    private Preferences preferences;
+    private FrameLayout container;
+    private HomeScreen homeScreen;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         ArklectorApplication app = (ArklectorApplication) getApplication();
+        preferences = app.preferences();
         ClipboardManager clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipboardSource clipboardSource = new ClipboardSource(clipboardManager, app.preferences());
+        ClipboardSource clipboardSource = new ClipboardSource(clipboardManager, preferences);
         ReadingQueueService queueService = new ReadingQueueService(app.database().queueDao());
 
         viewModel = new ViewModelProvider(this, new ViewModelProvider.Factory() {
@@ -45,7 +50,9 @@ public final class MainActivity extends AppCompatActivity {
             }
         }).get(ReaderViewModel.class);
 
-        setContentView(buildRootView());
+        container = new FrameLayout(this);
+        setContentView(container);
+        showHome();
 
         viewModel.playbackState().observe(this, this::onPlaybackStateChanged);
 
@@ -57,29 +64,31 @@ public final class MainActivity extends AppCompatActivity {
         }
     }
 
-    private android.view.View buildRootView() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER_HORIZONTAL);
+    private void showHome() {
+        homeScreen = new HomeScreen(this, new HomeScreen.Listener() {
+            @Override
+            public void onReadClipboardNow() {
+                viewModel.readClipboardNow();
+            }
 
-        statusText = new TextView(this);
-        statusText.setText("Idle");
-        root.addView(statusText);
+            @Override
+            public void onOpenSettings() {
+                showSettings();
+            }
+        });
+        container.removeAllViews();
+        container.addView(homeScreen);
+    }
 
-        Button readNowButton = new Button(this);
-        readNowButton.setText("Read clipboard now");
-        readNowButton.setOnClickListener(v -> viewModel.readClipboardNow());
-        root.addView(readNowButton);
-
-        return root;
+    private void showSettings() {
+        SettingsScreen settingsScreen = new SettingsScreen(this, preferences, this::showHome);
+        container.removeAllViews();
+        container.addView(settingsScreen);
     }
 
     private void onPlaybackStateChanged(PlaybackState state) {
-        String label = switch (state) {
-            case PlaybackState.Idle ignored -> "Idle";
-            case PlaybackState.Playing playing -> "Playing: " + playing.current().text();
-            case PlaybackState.Paused paused -> "Paused: " + paused.current().text();
-        };
-        statusText.setText(label);
+        if (homeScreen != null) {
+            homeScreen.setPlaybackState(state);
+        }
     }
 }

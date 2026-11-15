@@ -11,7 +11,7 @@
         android:allowBackup="true">
 
         <activity
-            android:name="ARKlector.ui.MainActivity"
+            android:name="ARKlector.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
