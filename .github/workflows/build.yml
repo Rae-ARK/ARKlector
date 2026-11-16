@@ -35,16 +35,24 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Provisions a verified Gradle distribution via Gradle's official action instead of
-    # relying on a pre-committed gradle-wrapper.jar (which this repo doesn't have yet).
-    # This also generates/refreshes the wrapper files to match gradle-wrapper.properties.
+    # gradlew, gradle-wrapper.jar and gradle-wrapper.properties are committed (see
+    # gradle/wrapper/), so this is the normal wrapper-caching mode: no gradle-version
+    # input, meaning it does NOT provision/force a specific Gradle install. It just
+    # caches dependencies/wrapper downloads around the ./gradlew calls below. This
+    # replaces a previous "provision Gradle live, then run `gradle wrapper` to
+    # (re)generate the wrapper files" setup, which depended on whatever Gradle version
+    # that live provisioning step was pinned to being able to configure this project at
+    # all - a real failure mode here: AGP (app/build.gradle's com.android.application
+    # version, currently 8.6.0) requires Gradle 8.7+, but that step was still pinned to
+    # 8.1.1 (copy-pasted from ARKarium, which deliberately keeps its own AGP at 8.1.1
+    # to match). Configuration failed under 8.1.1 before the wrapper task ever ran, so
+    # gradlew was never written, and "Run unit tests" below - if: always(), so it still
+    # runs - then failed on a missing ./gradlew instead of a clear AGP/Gradle version
+    # error. gradle-wrapper.properties now pins 8.7, AGP 8.6.0's documented minimum
+    # and default, so ./gradlew itself provisions a compatible Gradle with no separate
+    # provisioning/regeneration step needed.
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: 8.1.1
-
-    - name: Regenerate Gradle wrapper
-      run: gradle wrapper --gradle-version 8.1.1
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
