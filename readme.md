@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/app-icon.png" width="150" alt="ARKarium icon">
+</p>
+
 <h1 align="center"><b>ARKlector</b></h1>
 
 <p align="center">
