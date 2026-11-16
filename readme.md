@@ -25,6 +25,11 @@
 
 A Read Aloud app which takes content from clipboard and using TTS reads aloud.
 
+> [!STATUS]
+> Early development. ALpha Stage.
+> Follow the installation and release links from these official sources. A similar
+> repository name or copied README does not establish that a download is official.
+> 
 
 ## Installation
 
@@ -40,9 +45,6 @@ Obtainium allows users to install and track Android applications directly from t
 4. Obtainium will track the repository for available updates.
 
 Alternatively, download the latest release directly from [GitHub Releases](https://github.com/Rae-ARK/ARKlector/releases/).
-
-> [! Status]
-> Early development. ALpha Stage.
 
 ## License
 
