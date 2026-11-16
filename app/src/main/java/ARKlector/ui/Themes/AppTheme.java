@@ -70,4 +70,9 @@ public final class AppTheme {
         button.setTextColor(COLOR_PRIMARY);
         button.setBackgroundColor(COLOR_SURFACE);
     }
+
+    /** A hairline row separator for index/list-style screens (SettingsScreen, voice picker). */
+    public static void styleDivider(View divider) {
+        divider.setBackgroundColor(COLOR_DIVIDER);
+    }
 }
