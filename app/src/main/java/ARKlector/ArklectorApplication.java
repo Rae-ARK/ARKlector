@@ -3,6 +3,8 @@ package ARKlector;
 import android.app.Application;
 import android.content.SharedPreferences;
 
+import com.google.android.material.color.DynamicColors;
+
 import ARKlector.data.AppDatabase;
 import ARKlector.service.Preferences;
 
@@ -19,6 +21,8 @@ public final class ArklectorApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        // Material 3 dynamic color (Android 12+): activities pick up the wallpaper palette.
+        DynamicColors.applyToActivitiesIfAvailable(this);
         database = AppDatabase.open(this);
         SharedPreferences prefs = getSharedPreferences(getPackageName() + "_preferences", MODE_PRIVATE);
         preferences = new Preferences(prefs);

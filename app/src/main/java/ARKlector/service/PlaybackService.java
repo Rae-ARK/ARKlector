@@ -37,6 +37,8 @@ public final class PlaybackService extends Service {
     // Guards against onStartCommand (one per startForegroundService call) pulling a
     // second segment while one is still speaking.
     private boolean speaking;
+    private boolean paused;
+    private Segment currentSegment;
 
     @Override
     public void onCreate() {
@@ -89,26 +91,93 @@ public final class PlaybackService extends Service {
         }
         queue.next().ifPresentOrElse(
                 segment -> {
+                    synchronized (this) {
+                        currentSegment = segment;
+                    }
                     state.postValue(new PlaybackState.Playing(segment));
                     ttsEngine.speak(segment, preferences.observeVoice().getValue());
                 },
                 () -> {
                     synchronized (this) {
                         speaking = false;
+                        currentSegment = null;
                     }
-                    state.postValue(new PlaybackState.Idle());
-                    // A bound Activity keeps the service alive past stopSelf(), which
-                    // would leave the foreground notification up; remove it explicitly.
-                    stopForeground(STOP_FOREGROUND_REMOVE);
-                    stopSelf();
+                    finishPlayback();
                 });
+    }
+
+    private void finishPlayback() {
+        state.postValue(new PlaybackState.Idle());
+        // A bound Activity keeps the service alive past stopSelf(), which would leave
+        // the foreground notification up; remove it explicitly.
+        stopForeground(STOP_FOREGROUND_REMOVE);
+        stopSelf();
     }
 
     private void onSegmentDone(Segment ignored) {
         synchronized (this) {
+            if (paused) {
+                return;
+            }
             speaking = false;
         }
         advanceQueue();
+    }
+
+    // ---- Playback controls (called from the bound Activity, main thread) ---------
+
+    /**
+     * TextToSpeech has no real pause, so pausing stops the utterance and resuming
+     * re-speaks the current segment from its start.
+     */
+    public void pause() {
+        Segment segment;
+        synchronized (this) {
+            if (!speaking || paused || currentSegment == null) {
+                return;
+            }
+            paused = true;
+            segment = currentSegment;
+        }
+        ttsEngine.stop();
+        state.postValue(new PlaybackState.Paused(segment));
+    }
+
+    public void resume() {
+        Segment segment;
+        synchronized (this) {
+            if (!paused) {
+                return;
+            }
+            paused = false;
+            segment = currentSegment;
+        }
+        state.postValue(new PlaybackState.Playing(segment));
+        ttsEngine.speak(segment, preferences.observeVoice().getValue());
+    }
+
+    public void skipNext() {
+        synchronized (this) {
+            paused = false;
+            speaking = false;
+        }
+        ttsEngine.stop();
+        advanceQueue();
+    }
+
+    /** Stops speaking and discards whatever is still queued. */
+    public void stopPlayback() {
+        ReadingQueueService queue = queueService;
+        if (queue != null) {
+            queue.clear();
+        }
+        synchronized (this) {
+            paused = false;
+            speaking = false;
+            currentSegment = null;
+        }
+        ttsEngine.stop();
+        finishPlayback();
     }
 
     private Notification buildNotification() {
@@ -116,7 +185,7 @@ public final class PlaybackService extends Service {
         // play/pause/skip actions is still open, see docs/proposal/open-questions.md item 4.
         return new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle(getString(R.string.app_name))
-                .setSmallIcon(android.R.drawable.ic_media_play)
+                .setSmallIcon(R.drawable.ic_play_arrow)
                 .setOngoing(true)
                 .build();
     }

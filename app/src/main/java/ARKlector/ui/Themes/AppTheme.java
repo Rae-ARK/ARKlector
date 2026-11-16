@@ -1,102 +1,185 @@
 package ARKlector.ui.Themes;
 
-import android.graphics.Color;
-import android.graphics.Typeface;
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.AttrRes;
+import androidx.annotation.DrawableRes;
+import androidx.annotation.StyleRes;
+
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.divider.MaterialDivider;
+
 /**
- * Central source of colors, spacing and typography, expressed as Java constants and
- * static styling helpers. Per docs/foundational/design.md: no {@code res/values/styles.xml},
- * no XML layouts — a screen built with the classic {@code View} toolkit reaches for this
- * class instead of a style resource.
+ * Material 3 styling helpers. Colors are never hard-coded: they are resolved from the
+ * Activity's theme ({@code Theme.Material3.DayNight.NoActionBar}, plus dynamic color on
+ * Android 12+ via {@link com.google.android.material.color.DynamicColors}), so light/dark
+ * and the user's wallpaper palette are followed automatically. Type uses the M3 type
+ * scale ({@code TextAppearance.Material3.*}). Everything is applied from Java, so there
+ * is still no layout XML and no {@code styles.xml} of our own - see
+ * docs/foundational/design.md.
  */
 public final class AppTheme {
 
     private AppTheme() {
     }
 
-    // Colors
-    public static final int COLOR_BACKGROUND = Color.parseColor("#121212");
-    public static final int COLOR_SURFACE = Color.parseColor("#1E1E1E");
-    public static final int COLOR_PRIMARY = Color.parseColor("#7C4DFF");
-    public static final int COLOR_ON_PRIMARY = Color.parseColor("#FFFFFF");
-    public static final int COLOR_TEXT_PRIMARY = Color.parseColor("#F5F5F5");
-    public static final int COLOR_TEXT_SECONDARY = Color.parseColor("#B0B0B0");
-    public static final int COLOR_DIVIDER = Color.parseColor("#2C2C2C");
-
-    // Spacing, in dp — convert with dpToPx before handing to a LayoutParams/padding call.
+    // Spacing, in dp (M3 uses a 4dp grid; these are 8/16/24).
     public static final int SPACING_SMALL_DP = 8;
     public static final int SPACING_MEDIUM_DP = 16;
     public static final int SPACING_LARGE_DP = 24;
 
-    // Typography, in sp.
-    public static final float TEXT_SIZE_TITLE_SP = 22f;
-    public static final float TEXT_SIZE_BODY_SP = 16f;
-    public static final float TEXT_SIZE_CAPTION_SP = 13f;
-    public static final float TEXT_SIZE_ICON_SP = 22f;
-
-    /**
-     * Minimum touch target per Android accessibility guidance — a glyph-as-button
-     * (see {@link #styleIconButton}) needs this enforced via padding, since its glyph
-     * alone renders much smaller than a tappable 48dp square.
-     */
+    /** M3 minimum touch target. */
     public static final int MIN_TOUCH_TARGET_DP = 48;
+    /** M3 list item (one-line) height. */
+    public static final int LIST_ITEM_HEIGHT_DP = 56;
+    /** M3 small top app bar height. */
+    public static final int TOP_BAR_HEIGHT_DP = 64;
 
     public static int dpToPx(View view, int dp) {
-        float density = view.getResources().getDisplayMetrics().density;
+        return dpToPx(view.getContext(), dp);
+    }
+
+    public static int dpToPx(Context context, int dp) {
+        float density = context.getResources().getDisplayMetrics().density;
         return Math.round(dp * density);
     }
 
+    // ---- Color roles ------------------------------------------------------------
+
+    public static int surface(View view) {
+        return color(view, com.google.android.material.R.attr.colorSurface);
+    }
+
+    public static int onSurface(View view) {
+        return color(view, com.google.android.material.R.attr.colorOnSurface);
+    }
+
+    public static int onSurfaceVariant(View view) {
+        return color(view, com.google.android.material.R.attr.colorOnSurfaceVariant);
+    }
+
+    public static int primary(View view) {
+        return color(view, com.google.android.material.R.attr.colorPrimary);
+    }
+
+    public static int secondaryContainer(View view) {
+        return color(view, com.google.android.material.R.attr.colorSecondaryContainer);
+    }
+
+    public static int onSecondaryContainer(View view) {
+        return color(view, com.google.android.material.R.attr.colorOnSecondaryContainer);
+    }
+
+    private static int color(View view, @AttrRes int attr) {
+        return MaterialColors.getColor(view, attr);
+    }
+
+    // ---- Styling ----------------------------------------------------------------
+
     public static void styleScreenBackground(View view) {
-        view.setBackgroundColor(COLOR_BACKGROUND);
+        view.setBackgroundColor(surface(view));
     }
 
+    /** Title Large - top app bar and screen titles. */
     public static void styleTitle(TextView textView) {
-        textView.setTextColor(COLOR_TEXT_PRIMARY);
-        textView.setTextSize(TEXT_SIZE_TITLE_SP);
-        textView.setTypeface(textView.getTypeface(), Typeface.BOLD);
+        apply(textView, com.google.android.material.R.style.TextAppearance_Material3_TitleLarge,
+                onSurface(textView));
     }
 
+    /** Body Large - primary reading/list text. */
     public static void styleBody(TextView textView) {
-        textView.setTextColor(COLOR_TEXT_PRIMARY);
-        textView.setTextSize(TEXT_SIZE_BODY_SP);
+        apply(textView, com.google.android.material.R.style.TextAppearance_Material3_BodyLarge,
+                onSurface(textView));
     }
 
+    /** Body Medium in on-surface-variant - supporting text. */
     public static void styleCaption(TextView textView) {
-        textView.setTextColor(COLOR_TEXT_SECONDARY);
-        textView.setTextSize(TEXT_SIZE_CAPTION_SP);
+        apply(textView, com.google.android.material.R.style.TextAppearance_Material3_BodyMedium,
+                onSurfaceVariant(textView));
     }
 
-    public static void stylePrimaryButton(Button button) {
-        button.setTextColor(COLOR_ON_PRIMARY);
-        button.setBackgroundColor(COLOR_PRIMARY);
+    /** Title Small in primary - section headers inside a screen. */
+    public static void styleSectionLabel(TextView textView) {
+        apply(textView, com.google.android.material.R.style.TextAppearance_Material3_TitleSmall,
+                primary(textView));
     }
 
-    public static void styleSecondaryButton(Button button) {
-        button.setTextColor(COLOR_PRIMARY);
-        button.setBackgroundColor(COLOR_SURFACE);
+    /** Label Medium - overline-style captions on cards. */
+    public static void styleLabel(TextView textView, int color) {
+        apply(textView, com.google.android.material.R.style.TextAppearance_Material3_LabelMedium, color);
     }
 
-    /** A hairline row separator for index/list-style screens (SettingsScreen, voice picker). */
-    public static void styleDivider(View divider) {
-        divider.setBackgroundColor(COLOR_DIVIDER);
+    private static void apply(TextView textView, @StyleRes int appearance, int color) {
+        textView.setTextAppearance(appearance);
+        textView.setTextColor(color);
+    }
+
+    /** A 48dp borderless-ripple icon button, tinted on-surface-variant. */
+    public static ImageButton iconButton(
+            Context context, @DrawableRes int icon, String contentDescription, View.OnClickListener onClick) {
+        ImageButton button = new ImageButton(context);
+        button.setImageResource(icon);
+        button.setContentDescription(contentDescription);
+        button.setImageTintList(ColorStateList.valueOf(onSurfaceVariant(button)));
+        button.setBackgroundResource(resolveResource(context, android.R.attr.selectableItemBackgroundBorderless));
+        int size = dpToPx(context, MIN_TOUCH_TARGET_DP);
+        button.setLayoutParams(new LinearLayout.LayoutParams(size, size));
+        button.setOnClickListener(onClick);
+        return button;
+    }
+
+    /** Ripple background for a tappable list row. */
+    public static void styleRowRipple(View row) {
+        row.setBackgroundResource(resolveResource(row.getContext(), android.R.attr.selectableItemBackground));
+        row.setClickable(true);
+        row.setFocusable(true);
+    }
+
+    /** A full-width M3 divider (outline-variant, 1dp). */
+    public static MaterialDivider divider(Context context) {
+        return new MaterialDivider(context);
     }
 
     /**
-     * A single Unicode glyph standing in for an icon button (no drawable resources in
-     * this project — see docs/foundational/design.md — same approach as the voice
-     * picker's ★/☆ favorite glyphs). Centers the glyph in a square padded out to
-     * {@link #MIN_TOUCH_TARGET_DP} so a visually small character still has a thumb-sized
-     * tap area; the caller still needs to set clickable/focusable and an OnClickListener.
+     * M3 small top app bar: 64dp, {@code leading} (nav icon / logo) at the start, title
+     * filling the middle, {@code trailing} action icons at the end.
      */
-    public static void styleIconButton(TextView textView) {
-        textView.setTextColor(COLOR_TEXT_PRIMARY);
-        textView.setTextSize(TEXT_SIZE_ICON_SP);
-        textView.setGravity(android.view.Gravity.CENTER);
-        int minSizePx = dpToPx(textView, MIN_TOUCH_TARGET_DP);
-        textView.setMinWidth(minSizePx);
-        textView.setMinHeight(minSizePx);
+    public static LinearLayout topBar(Context context, View leading, String title, View... trailing) {
+        LinearLayout bar = new LinearLayout(context);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setMinimumHeight(dpToPx(context, TOP_BAR_HEIGHT_DP));
+        int edge = dpToPx(context, 4);
+        bar.setPadding(edge, 0, edge, 0);
+        styleScreenBackground(bar);
+
+        bar.addView(leading);
+
+        TextView titleView = new TextView(context);
+        titleView.setText(title);
+        styleTitle(titleView);
+        titleView.setSingleLine(true);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        titleParams.leftMargin = dpToPx(context, SPACING_SMALL_DP);
+        bar.addView(titleView, titleParams);
+
+        for (View action : trailing) {
+            bar.addView(action);
+        }
+        return bar;
+    }
+
+    private static int resolveResource(Context context, @AttrRes int attr) {
+        TypedValue value = new TypedValue();
+        context.getTheme().resolveAttribute(attr, value, true);
+        return value.resourceId;
     }
 }

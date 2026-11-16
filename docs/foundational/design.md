@@ -9,6 +9,9 @@ These are not negotiable and every other decision below is read in light of them
 * **Java 21**, min SDK 34. No Kotlin, anywhere, for any reason.
 * **No Jetpack Compose.** UI is built with the classic `View`/`ViewGroup` toolkit.
 * **No XML layouts.** Views are constructed and configured in Java code (`new LinearLayout(context)`, `setLayoutParams`, etc.), not inflated from `res/layout/*.xml`. Styling (colors, dimensions, typography) is likewise expressed in Java constants/builders, not `res/values/styles.xml`.
+* **Material 3, View-based.** The app theme is the library's `Theme.Material3.DayNight.NoActionBar` (dynamic color on Android 12+, applied in `ArklectorApplication`), and widgets come from Material Components (`MaterialSwitch`, `Slider`, `MaterialCardView`, `FloatingActionButton`, `MaterialDivider`). Colors are always resolved from theme attributes (color roles such as `colorSurface`, `colorOnSurface`, `colorPrimary`) and type from `TextAppearance.Material3.*`, via `AppTheme` - never hard-coded hex. This is still Java-built Views, not Compose.
+* **Resources that do exist.** Launcher icon layers, the in-app logo and small vector icons live in `res/drawable*` and `res/mipmap-anydpi` - they are assets, not layouts or styles. Unicode glyphs are no longer used as icons.
+* **No pattern-matching `switch`.** `android.jar` lacks `java.lang.runtime.SwitchBootstraps`, so javac crashes on it; use `instanceof` patterns (also fine on sealed types).
 
 ## Code philosophy
 

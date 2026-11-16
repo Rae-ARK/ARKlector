@@ -14,12 +14,14 @@
     </queries>
 
     <!-- AppCompatActivity throws "You need to use a Theme.AppCompat theme" without one,
-         which was the first-launch crash. NoActionBar: the UI draws its own top bar.
+         which was the first-launch crash. Material 3 DayNight (light/dark follows the system;
+         dynamic color is applied in ArklectorApplication). NoActionBar: the UI draws its own top bar.
          Library style reference only - no styles.xml of our own (design.md). -->
     <application
         android:name="ARKlector.ArklectorApplication"
         android:label="@string/app_name"
-        android:theme="@style/Theme.AppCompat.NoActionBar"
+        android:icon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.Material3.DayNight.NoActionBar"
         android:allowBackup="true">
 
         <activity

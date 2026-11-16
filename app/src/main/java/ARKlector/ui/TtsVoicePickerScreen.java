@@ -1,10 +1,12 @@
 package ARKlector.ui;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -15,6 +17,8 @@ import java.util.Set;
 
 import androidx.lifecycle.Observer;
 
+import org.arklector.app.R;
+
 import ARKlector.service.Preferences;
 import ARKlector.service.TtsEngine;
 import ARKlector.service.TtsVoiceModel;
@@ -22,19 +26,11 @@ import ARKlector.service.TtsVoiceModel.TtsVoiceInfo;
 import ARKlector.ui.Themes.AppTheme;
 
 /**
- * Full voice picker: every installed engine voice, grouped by language (device language
- * first), each row showing the name plus region/online/quality the way
- * {@link TtsVoiceModel#descriptionOf} states it, with a star to favorite a voice within
- * its language group. Reached from {@link TtsSettingsScreen}.
- *
- * <p>Ported from ARKarium's {@code ui/TtsVoicePickerScreen.kt} (Compose there, plain
- * {@code View}s here per docs/foundational/design.md); the grouping/sorting/favorites
- * logic itself lives in {@link TtsVoiceModel}, ported alongside it so it stays plain-JVM
- * testable rather than living inline in this screen. The "not-installed voices aren't
- * specially marked yet" gap {@code TtsVoiceModel.installedOnly}'s doc comment flags in
- * ARKarium is carried over here too, for the same reason — nothing ARKlector does today
- * prevents picking one; it just fails with a clear error once spoken, same as before this
- * screen existed.
+ * Full voice picker: every engine voice, grouped by language (device language first),
+ * each row showing the name plus region/online/quality as
+ * {@link TtsVoiceModel#descriptionOf} states it, a star to favorite a voice within its
+ * language group, and a trailing check on the selected voice. Reached from
+ * {@link TtsSettingsScreen}; styled as Material 3 list items.
  *
  * <p>Tapping a row applies that voice immediately via {@link Preferences#setVoice} and
  * returns to {@code TtsSettingsScreen}; tapping the star only toggles the favorite and
@@ -68,30 +64,13 @@ public final class TtsVoicePickerScreen extends LinearLayout {
         setOrientation(LinearLayout.VERTICAL);
         AppTheme.styleScreenBackground(this);
 
-        int padding = AppTheme.dpToPx(this, AppTheme.SPACING_LARGE_DP);
-        LinearLayout header = new LinearLayout(context);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(padding, padding, padding, AppTheme.dpToPx(this, AppTheme.SPACING_SMALL_DP));
-
-        Button backButton = new Button(context);
-        backButton.setText("Back");
-        AppTheme.styleSecondaryButton(backButton);
-        backButton.setOnClickListener(v -> listener.onBack());
-        header.addView(backButton);
-
-        TextView title = new TextView(context);
-        title.setText("Choose a voice");
-        AppTheme.styleTitle(title);
-        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        titleParams.leftMargin = AppTheme.dpToPx(this, AppTheme.SPACING_MEDIUM_DP);
-        header.addView(title, titleParams);
-        addView(header);
+        addView(AppTheme.topBar(context,
+                AppTheme.iconButton(context, R.drawable.ic_arrow_back, "Back", v -> listener.onBack()),
+                "Choose a voice"));
 
         content = new LinearLayout(context);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(padding, 0, padding, padding);
+        content.setPadding(0, 0, 0, AppTheme.dpToPx(this, AppTheme.SPACING_LARGE_DP));
 
         ScrollView scroll = new ScrollView(context);
         scroll.addView(content);
@@ -141,7 +120,9 @@ public final class TtsVoicePickerScreen extends LinearLayout {
             TextView loading = new TextView(context);
             loading.setText("Loading voices…");
             AppTheme.styleCaption(loading);
-            content.addView(loading, topMarginParams(AppTheme.SPACING_MEDIUM_DP));
+            int pad = AppTheme.dpToPx(this, AppTheme.SPACING_MEDIUM_DP);
+            loading.setPadding(pad, pad, pad, pad);
+            content.addView(loading);
             return;
         }
 
@@ -150,13 +131,15 @@ public final class TtsVoicePickerScreen extends LinearLayout {
         for (String language : languages) {
             TextView languageHeader = new TextView(context);
             languageHeader.setText(displayLanguage(language));
-            AppTheme.styleTitle(languageHeader);
-            content.addView(languageHeader, topMarginParams(AppTheme.SPACING_LARGE_DP));
+            AppTheme.styleSectionLabel(languageHeader);
+            int pad = AppTheme.dpToPx(this, AppTheme.SPACING_MEDIUM_DP);
+            languageHeader.setPadding(pad, pad, pad, AppTheme.dpToPx(this, AppTheme.SPACING_SMALL_DP));
+            content.addView(languageHeader);
 
             List<TtsVoiceInfo> rows = TtsVoiceModel.withFavoritesFirst(
                     TtsVoiceModel.rowsForLanguage(engineVoices, language), favorites);
             for (TtsVoiceInfo voice : rows) {
-                content.addView(voiceRow(context, voice), topMarginParams(AppTheme.SPACING_SMALL_DP));
+                content.addView(voiceRow(context, voice));
             }
         }
     }
@@ -165,8 +148,10 @@ public final class TtsVoicePickerScreen extends LinearLayout {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setClickable(true);
-        row.setFocusable(true);
+        row.setMinimumHeight(AppTheme.dpToPx(this, AppTheme.LIST_ITEM_HEIGHT_DP));
+        int pad = AppTheme.dpToPx(this, AppTheme.SPACING_SMALL_DP);
+        row.setPadding(pad, pad / 2, AppTheme.dpToPx(this, AppTheme.SPACING_MEDIUM_DP), pad / 2);
+        AppTheme.styleRowRipple(row);
         row.setOnClickListener(v -> {
             Preferences.Voice latest = preferences.observeVoice().getValue();
             preferences.setVoice(withVoiceId(latest, voice.name()));
@@ -174,23 +159,20 @@ public final class TtsVoicePickerScreen extends LinearLayout {
         });
 
         boolean favorite = favorites.contains(voice.name());
-        TextView star = new TextView(context);
-        star.setText(favorite ? "★" : "☆");
-        AppTheme.styleBody(star);
+        ImageButton star = AppTheme.iconButton(context,
+                favorite ? R.drawable.ic_star : R.drawable.ic_star_border,
+                favorite ? "Remove from favorites" : "Add to favorites",
+                v -> preferences.setVoiceFavorite(voice.name(), !favorite));
         if (favorite) {
-            star.setTextColor(AppTheme.COLOR_PRIMARY);
+            star.setImageTintList(ColorStateList.valueOf(AppTheme.primary(star)));
         }
-        star.setClickable(true);
-        star.setFocusable(true);
-        star.setOnClickListener(v -> preferences.setVoiceFavorite(voice.name(), !favorite));
         row.addView(star);
 
         LinearLayout textColumn = new LinearLayout(context);
         textColumn.setOrientation(LinearLayout.VERTICAL);
 
         TextView name = new TextView(context);
-        boolean selected = voice.name().equals(currentVoiceId);
-        name.setText(selected ? voice.name() + "  ✓" : voice.name());
+        name.setText(voice.name());
         AppTheme.styleBody(name);
         textColumn.addView(name);
 
@@ -201,8 +183,16 @@ public final class TtsVoicePickerScreen extends LinearLayout {
 
         LinearLayout.LayoutParams columnParams = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        columnParams.leftMargin = AppTheme.dpToPx(this, AppTheme.SPACING_SMALL_DP);
+        columnParams.leftMargin = pad;
         row.addView(textColumn, columnParams);
+
+        if (voice.name().equals(currentVoiceId)) {
+            ImageView check = new ImageView(context);
+            check.setImageResource(R.drawable.ic_check);
+            check.setImageTintList(ColorStateList.valueOf(AppTheme.primary(check)));
+            check.setContentDescription("Selected");
+            row.addView(check);
+        }
 
         return row;
     }
@@ -214,12 +204,5 @@ public final class TtsVoicePickerScreen extends LinearLayout {
     private static String displayLanguage(String languageTag) {
         String display = Locale.forLanguageTag(languageTag).getDisplayLanguage();
         return display.isBlank() ? languageTag : display;
-    }
-
-    private ViewGroup.LayoutParams topMarginParams(int spacingDp) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        params.topMargin = AppTheme.dpToPx(this, spacingDp);
-        return params;
     }
 }

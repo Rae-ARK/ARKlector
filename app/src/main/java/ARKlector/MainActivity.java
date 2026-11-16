@@ -12,6 +12,7 @@ import android.view.WindowInsets;
 import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import ARKlector.service.ClipboardSource;
@@ -43,17 +44,24 @@ public final class MainActivity extends AppCompatActivity {
     private FrameLayout container;
     private HomeScreen homeScreen;
     private boolean playbackBound;
+    private PlaybackService playbackService;
+
+    // Mirrors the service's state into the ViewModel. observeForever (removed in
+    // unbindPlayback) rather than observe(owner): the connection is re-made on every
+    // onStart, and a fresh owner-scoped observer each time would pile up.
+    private final Observer<PlaybackState> serviceStateObserver = state -> viewModel.updatePlaybackState(state);
 
     private final ServiceConnection playbackConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder binder) {
-            PlaybackService service = ((PlaybackService.LocalBinder) binder).getService();
-            service.setQueueService(viewModel.queueService());
-            service.state().observe(MainActivity.this, viewModel::updatePlaybackState);
+            playbackService = ((PlaybackService.LocalBinder) binder).getService();
+            playbackService.setQueueService(viewModel.queueService());
+            playbackService.state().observeForever(serviceStateObserver);
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            playbackService = null;
         }
     };
 
@@ -128,9 +136,45 @@ public final class MainActivity extends AppCompatActivity {
      */
     private void startPlayback() {
         Intent intent = new Intent(this, PlaybackService.class);
-        startForegroundService(intent);
+        try {
+            startForegroundService(intent);
+        } catch (IllegalStateException e) {
+            // ForegroundServiceStartNotAllowedException: app is not in a state that may
+            // start a foreground service (backgrounded). Nothing to play right now.
+            return;
+        }
         if (!playbackBound) {
             playbackBound = bindService(intent, playbackConnection, Context.BIND_AUTO_CREATE);
+        }
+    }
+
+    /**
+     * Re-attach to a service that is already running (e.g. after rotation or returning
+     * from the background) so the controls and status line reflect it. flags = 0: never
+     * creates the service just to look at it.
+     */
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (!playbackBound) {
+            playbackBound = bindService(new Intent(this, PlaybackService.class), playbackConnection, 0);
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        unbindPlayback();
+        super.onStop();
+    }
+
+    private void unbindPlayback() {
+        if (playbackService != null) {
+            playbackService.state().removeObserver(serviceStateObserver);
+            playbackService = null;
+        }
+        if (playbackBound) {
+            unbindService(playbackConnection);
+            playbackBound = false;
         }
     }
 
@@ -144,6 +188,32 @@ public final class MainActivity extends AppCompatActivity {
             @Override
             public void onOpenSettings() {
                 showSettings();
+            }
+
+            @Override
+            public void onTogglePlayPause() {
+                if (playbackService == null) {
+                    return;
+                }
+                if (viewModel.playbackState().getValue() instanceof PlaybackState.Paused) {
+                    playbackService.resume();
+                } else {
+                    playbackService.pause();
+                }
+            }
+
+            @Override
+            public void onSkipNext() {
+                if (playbackService != null) {
+                    playbackService.skipNext();
+                }
+            }
+
+            @Override
+            public void onStopPlayback() {
+                if (playbackService != null) {
+                    playbackService.stopPlayback();
+                }
             }
         });
         // A fresh HomeScreen starts from its own placeholder defaults; push the
@@ -211,10 +281,7 @@ public final class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         viewModel.setOnSegmentsQueued(null);
-        if (playbackBound) {
-            unbindService(playbackConnection);
-            playbackBound = false;
-        }
+        unbindPlayback();
         voiceBrowserEngine.shutdown();
         super.onDestroy();
     }

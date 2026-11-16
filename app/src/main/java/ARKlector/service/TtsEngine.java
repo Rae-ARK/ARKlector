@@ -38,6 +38,9 @@ public final class TtsEngine {
     private volatile Consumer<Segment> onSegmentDone = s -> { };
     private volatile Consumer<Segment> onSegmentError = s -> { };
     private volatile Segment currentSegment;
+    // Callbacks for an utterance other than this one (e.g. one cut off by stop() for
+    // pause/skip) are stale and must not advance the queue.
+    private volatile String currentUtteranceId;
 
     // speak() before the OnInitListener fires used to be silently dropped by
     // TextToSpeech (ERROR), losing the segment and stalling the queue. Hold the most
@@ -81,7 +84,7 @@ public final class TtsEngine {
             @Override
             public void onDone(String utteranceId) {
                 Segment segment = currentSegment;
-                if (segment != null) {
+                if (segment != null && utteranceId != null && utteranceId.equals(currentUtteranceId)) {
                     onSegmentDone.accept(segment);
                 }
             }
@@ -89,7 +92,7 @@ public final class TtsEngine {
             @Override
             public void onError(String utteranceId) {
                 Segment segment = currentSegment;
-                if (segment != null) {
+                if (segment != null && utteranceId != null && utteranceId.equals(currentUtteranceId)) {
                     onSegmentError.accept(segment);
                 }
             }
@@ -154,6 +157,7 @@ public final class TtsEngine {
         }
         currentSegment = segment;
         String utteranceId = UUID.randomUUID().toString();
+        currentUtteranceId = utteranceId;
         int result = tts.speak(segment.text(), TextToSpeech.QUEUE_ADD, null, utteranceId);
         if (result == TextToSpeech.ERROR) {
             // No utterance callback will ever fire; surface it so the queue keeps moving.
@@ -162,6 +166,7 @@ public final class TtsEngine {
     }
 
     public void stop() {
+        currentUtteranceId = null;
         tts.stop();
     }
 

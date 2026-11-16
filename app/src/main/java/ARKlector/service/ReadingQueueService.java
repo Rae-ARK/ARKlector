@@ -65,6 +65,11 @@ public final class ReadingQueueService {
         persist();
     }
 
+    public synchronized void clear() {
+        queue.clear();
+        persist();
+    }
+
     public synchronized boolean isEmpty() {
         return queue.isEmpty();
     }
