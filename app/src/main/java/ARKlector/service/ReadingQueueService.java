@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import ARKlector.data.QueueDao;
 import ARKlector.data.QueueRow;
@@ -18,6 +20,10 @@ public final class ReadingQueueService {
 
     private final Deque<Segment> queue = new ArrayDeque<>();
     private final QueueDao queueDao;
+    // Room throws IllegalStateException on main-thread queries, and every mutation here
+    // is called from the main thread or a TTS callback thread. A single thread keeps the
+    // write-through copies applied in mutation order.
+    private final ExecutorService persistExecutor = Executors.newSingleThreadExecutor();
 
     public ReadingQueueService(QueueDao queueDao) {
         this.queueDao = queueDao;
@@ -69,6 +75,6 @@ public final class ReadingQueueService {
         for (Segment segment : queue) {
             rows.add(new QueueRow(0, segment.text(), segment.guessedLocale().toLanguageTag(), position++));
         }
-        queueDao.replaceAll(rows);
+        persistExecutor.execute(() -> queueDao.replaceAll(rows));
     }
 }

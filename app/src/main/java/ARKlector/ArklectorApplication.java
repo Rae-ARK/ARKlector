@@ -2,7 +2,6 @@ package ARKlector;
 
 import android.app.Application;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
 
 import ARKlector.data.AppDatabase;
 import ARKlector.service.Preferences;
@@ -21,7 +20,7 @@ public final class ArklectorApplication extends Application {
     public void onCreate() {
         super.onCreate();
         database = AppDatabase.open(this);
-        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        SharedPreferences prefs = getSharedPreferences(getPackageName() + "_preferences", MODE_PRIVATE);
         preferences = new Preferences(prefs);
     }
 

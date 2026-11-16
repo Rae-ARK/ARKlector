@@ -35,6 +35,8 @@ public final class ReaderViewModel extends ViewModel {
      */
     private final MutableLiveData<String> lastClipboardText = new MutableLiveData<>(null);
 
+    private Runnable onSegmentsQueued = () -> { };
+
     public ReaderViewModel(ClipboardSource clipboardSource, ReadingQueueService queueService) {
         this.clipboardSource = clipboardSource;
         this.queueService = queueService;
@@ -53,6 +55,30 @@ public final class ReaderViewModel extends ViewModel {
         clipboardSource.readNow();
     }
 
+    /** Share-intent entry point; same path as a clipboard change. */
+    public void submitSharedText(String text) {
+        clipboardSource.submit(text);
+    }
+
+    public ReadingQueueService queueService() {
+        return queueService;
+    }
+
+    /** Mirrors {@code PlaybackService}'s state into what the UI observes. Main thread. */
+    public void updatePlaybackState(PlaybackState state) {
+        playbackState.setValue(state);
+    }
+
+    /**
+     * Invoked after segments are queued so the Activity (which owns the Context this
+     * class deliberately lacks) can start {@code PlaybackService}. Pass {@code null}
+     * to clear it, e.g. from {@code onDestroy}, so a retained ViewModel doesn't hold
+     * a destroyed Activity.
+     */
+    public void setOnSegmentsQueued(Runnable callback) {
+        this.onSegmentsQueued = callback != null ? callback : () -> { };
+    }
+
     private void onClipboardText(String raw) {
         String clean = TextNormalizer.clean(raw);
         lastClipboardText.setValue(clean);
@@ -60,9 +86,10 @@ public final class ReaderViewModel extends ViewModel {
         List<Segment> segments = Segmenter.split(clean, locale, MAX_UTTERANCE_CHARS);
         if (!segments.isEmpty()) {
             queueService.enqueue(segments);
-            // Starting PlaybackService on a queue empty -> non-empty transition is the
-            // Activity/Service boundary described in docs/implementation/synthesis-playback.md;
-            // wired from MainActivity, not here, to keep this class free of Context.
+            // Starting PlaybackService is the Activity/Service boundary described in
+            // docs/implementation/synthesis-playback.md; wired from MainActivity via
+            // setOnSegmentsQueued, to keep this class free of Context.
+            onSegmentsQueued.run();
         }
     }
 

@@ -13,7 +13,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import ARKlector.ArklectorApplication;
-import ARKlector.R;
+import org.arklector.app.R;
 import ARKlector.model.Segment;
 import ARKlector.viewmodel.PlaybackState;
 
@@ -31,8 +31,12 @@ public final class PlaybackService extends Service {
     private final MutableLiveData<PlaybackState> state = new MutableLiveData<>(new PlaybackState.Idle());
 
     private TtsEngine ttsEngine;
-    private ReadingQueueService queueService;
+    private volatile ReadingQueueService queueService;
     private Preferences preferences;
+    // True from the moment a segment is taken off the queue until its utterance ends.
+    // Guards against onStartCommand (one per startForegroundService call) pulling a
+    // second segment while one is still speaking.
+    private boolean speaking;
 
     @Override
     public void onCreate() {
@@ -48,7 +52,9 @@ public final class PlaybackService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForeground(NOTIFICATION_ID, buildNotification());
         advanceQueue();
-        return START_STICKY;
+        // Nothing to resume after a process kill (no queue reference until the Activity
+        // rebinds), so don't let the system restart an empty foreground service.
+        return START_NOT_STICKY;
     }
 
     @Nullable
@@ -61,26 +67,47 @@ public final class PlaybackService extends Service {
         return state;
     }
 
+    /**
+     * Called by the bound Activity. The service is usually started before the binding
+     * completes, so pick up anything already queued rather than waiting for the next
+     * start command.
+     */
     public void setQueueService(ReadingQueueService queueService) {
         this.queueService = queueService;
+        if (!queueService.isEmpty()) {
+            advanceQueue();
+        }
     }
 
     private void advanceQueue() {
-        if (queueService == null) {
-            return;
+        ReadingQueueService queue = queueService;
+        synchronized (this) {
+            if (queue == null || speaking) {
+                return;
+            }
+            speaking = true;
         }
-        queueService.next().ifPresentOrElse(
+        queue.next().ifPresentOrElse(
                 segment -> {
                     state.postValue(new PlaybackState.Playing(segment));
                     ttsEngine.speak(segment, preferences.observeVoice().getValue());
                 },
                 () -> {
+                    synchronized (this) {
+                        speaking = false;
+                    }
                     state.postValue(new PlaybackState.Idle());
+                    // A bound Activity keeps the service alive past stopSelf(), which
+                    // would leave the foreground notification up; remove it explicitly.
+                    stopForeground(STOP_FOREGROUND_REMOVE);
                     stopSelf();
                 });
     }
 
     private void onSegmentDone(Segment ignored) {
+        synchronized (this) {
+            speaking = false;
+        }
         advanceQueue();
     }
 

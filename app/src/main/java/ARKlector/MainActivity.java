@@ -1,15 +1,20 @@
 package ARKlector;
 
+import android.Manifest;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
 import ARKlector.service.ClipboardSource;
+import ARKlector.service.PlaybackService;
 import ARKlector.service.Preferences;
 import ARKlector.service.ReadingQueueService;
 import ARKlector.service.TtsEngine;
@@ -35,6 +40,20 @@ public final class MainActivity extends AppCompatActivity {
     private Preferences preferences;
     private FrameLayout container;
     private HomeScreen homeScreen;
+    private boolean playbackBound;
+
+    private final ServiceConnection playbackConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+            PlaybackService service = ((PlaybackService.LocalBinder) binder).getService();
+            service.setQueueService(viewModel.queueService());
+            service.state().observe(MainActivity.this, viewModel::updatePlaybackState);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+        }
+    };
 
     /**
      * A second {@link TtsEngine} — separate from the one {@code PlaybackService}
@@ -53,17 +72,21 @@ public final class MainActivity extends AppCompatActivity {
         ArklectorApplication app = (ArklectorApplication) getApplication();
         preferences = app.preferences();
         ClipboardManager clipboardManager = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        ClipboardSource clipboardSource = new ClipboardSource(clipboardManager, preferences);
-        ReadingQueueService queueService = new ReadingQueueService(app.database().queueDao());
         voiceBrowserEngine = new TtsEngine(this);
 
+        // Built inside the factory so they're created once per ViewModel, not once per
+        // Activity instance: constructing them here on every onCreate (e.g. rotation)
+        // registered a new clipboard listener each time that nothing ever removed.
         viewModel = new ViewModelProvider(this, new ViewModelProvider.Factory() {
             @Override
             @SuppressWarnings("unchecked")
             public <T extends androidx.lifecycle.ViewModel> T create(Class<T> modelClass) {
+                ClipboardSource clipboardSource = new ClipboardSource(clipboardManager, preferences);
+                ReadingQueueService queueService = new ReadingQueueService(app.database().queueDao());
                 return (T) new ReaderViewModel(clipboardSource, queueService);
             }
         }).get(ReaderViewModel.class);
+        viewModel.setOnSegmentsQueued(this::startPlayback);
 
         container = new FrameLayout(this);
         setContentView(container);
@@ -72,11 +95,31 @@ public final class MainActivity extends AppCompatActivity {
         viewModel.playbackState().observe(this, this::onPlaybackStateChanged);
         viewModel.lastClipboardText().observe(this, this::onClipboardContentChanged);
 
-        if (Intent.ACTION_SEND.equals(getIntent().getAction())) {
+        // Without the runtime grant the foreground-service notification is hidden
+        // (playback itself still works).
+        if (savedInstanceState == null) {
+            requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS}, 0);
+        }
+
+        // savedInstanceState == null: on rotation getIntent() is still the original
+        // share intent and would otherwise be re-submitted.
+        if (savedInstanceState == null && Intent.ACTION_SEND.equals(getIntent().getAction())) {
             CharSequence shared = getIntent().getCharSequenceExtra(Intent.EXTRA_TEXT);
             if (shared != null) {
-                clipboardSource.submit(shared.toString());
+                viewModel.submitSharedText(shared.toString());
             }
+        }
+    }
+
+    /**
+     * Nothing started PlaybackService before, and nothing ever gave it the queue, so
+     * queued segments were never spoken.
+     */
+    private void startPlayback() {
+        Intent intent = new Intent(this, PlaybackService.class);
+        startForegroundService(intent);
+        if (!playbackBound) {
+            playbackBound = bindService(intent, playbackConnection, Context.BIND_AUTO_CREATE);
         }
     }
 
@@ -156,6 +199,11 @@ public final class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        viewModel.setOnSegmentsQueued(null);
+        if (playbackBound) {
+            unbindService(playbackConnection);
+            playbackBound = false;
+        }
         voiceBrowserEngine.shutdown();
         super.onDestroy();
     }

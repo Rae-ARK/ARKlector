@@ -35,16 +35,42 @@ public final class TtsEngine {
     private final MutableLiveData<Boolean> ready = new MutableLiveData<>(false);
     private final MutableLiveData<List<TtsVoiceInfo>> voices = new MutableLiveData<>(List.of());
 
-    private Consumer<Segment> onSegmentDone = s -> { };
-    private Consumer<Segment> onSegmentError = s -> { };
-    private Segment pendingSegment;
+    private volatile Consumer<Segment> onSegmentDone = s -> { };
+    private volatile Consumer<Segment> onSegmentError = s -> { };
+    private volatile Segment currentSegment;
+
+    // speak() before the OnInitListener fires used to be silently dropped by
+    // TextToSpeech (ERROR), losing the segment and stalling the queue. Hold the most
+    // recent request and replay it once init completes.
+    private final Object initLock = new Object();
+    private boolean initDone;
+    private boolean initFailed;
+    private Segment waitingSegment;
+    private Preferences.Voice waitingVoice;
 
     public TtsEngine(Context context) {
         tts = new TextToSpeech(context.getApplicationContext(), status -> {
             boolean success = status == TextToSpeech.SUCCESS;
+            Segment waiting;
+            Preferences.Voice waitingWith;
+            synchronized (initLock) {
+                initDone = true;
+                initFailed = !success;
+                waiting = waitingSegment;
+                waitingWith = waitingVoice;
+                waitingSegment = null;
+                waitingVoice = null;
+            }
             ready.postValue(success);
             if (success) {
                 voices.postValue(loadVoices());
+            }
+            if (waiting != null) {
+                if (success) {
+                    doSpeak(waiting, waitingWith);
+                } else {
+                    onSegmentError.accept(waiting);
+                }
             }
         });
         tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
@@ -54,15 +80,17 @@ public final class TtsEngine {
 
             @Override
             public void onDone(String utteranceId) {
-                if (pendingSegment != null) {
-                    onSegmentDone.accept(pendingSegment);
+                Segment segment = currentSegment;
+                if (segment != null) {
+                    onSegmentDone.accept(segment);
                 }
             }
 
             @Override
             public void onError(String utteranceId) {
-                if (pendingSegment != null) {
-                    onSegmentError.accept(pendingSegment);
+                Segment segment = currentSegment;
+                if (segment != null) {
+                    onSegmentError.accept(segment);
                 }
             }
         });
@@ -97,6 +125,23 @@ public final class TtsEngine {
      * settled the other way.
      */
     public void speak(Segment segment, Preferences.Voice voice) {
+        boolean failed;
+        synchronized (initLock) {
+            if (!initDone) {
+                waitingSegment = segment;
+                waitingVoice = voice;
+                return;
+            }
+            failed = initFailed;
+        }
+        if (failed) {
+            onSegmentError.accept(segment);
+            return;
+        }
+        doSpeak(segment, voice);
+    }
+
+    private void doSpeak(Segment segment, Preferences.Voice voice) {
         boolean voicePinned = false;
         if (voice != null) {
             tts.setSpeechRate(voice.speechRate());
@@ -107,9 +152,13 @@ public final class TtsEngine {
             Locale locale = segment.guessedLocale() != null ? segment.guessedLocale() : Locale.getDefault();
             tts.setLanguage(locale);
         }
-        pendingSegment = segment;
+        currentSegment = segment;
         String utteranceId = UUID.randomUUID().toString();
-        tts.speak(segment.text(), TextToSpeech.QUEUE_ADD, null, utteranceId);
+        int result = tts.speak(segment.text(), TextToSpeech.QUEUE_ADD, null, utteranceId);
+        if (result == TextToSpeech.ERROR) {
+            // No utterance callback will ever fire; surface it so the queue keeps moving.
+            onSegmentError.accept(segment);
+        }
     }
 
     public void stop() {

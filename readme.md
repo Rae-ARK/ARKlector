@@ -13,7 +13,7 @@
 </h4>
 
 <p align="center">
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522ARKlector%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252FRae-ARK%252FARKarium%2522%252C%2522author%2522%253A%2522Rae-ARK%2522%252C%2522name%2522%253A%2522ARKlector%2522%257D"><img src="assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a>
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium%3A%2F%2Fapp%2F%257B%2522id%2522%253A%2522ARKlector%2522%252C%2522url%2522%253A%2522https%253A%252F%252Fgithub.com%252FRae-ARK%252FARKlector%2522%252C%2522author%2522%253A%2522Rae-ARK%2522%252C%2522name%2522%253A%2522ARKlector%2522%257D"><img src="assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a>
   <a href="https://github.com/Rae-ARK/ARKlector/releases/"><img src="https://raw.githubusercontent.com/machiav3lli/oandbackupx/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Get it on GitHub" height="80"></a>
 </p>
 
@@ -32,7 +32,7 @@ Obtainium allows users to install and track Android applications directly from t
 
 1. Install [Obtainium](https://github.com/ImranR98/Obtainium).
 2. Click the **Get it on Obtainium** badge above.
-3. Confirm the ARKarium application configuration.
+3. Confirm the ARKlector application configuration.
 4. Obtainium will track the repository for available updates.
 
 Alternatively, download the latest release directly from [GitHub Releases](https://github.com/Rae-ARK/ARKlector/releases/).

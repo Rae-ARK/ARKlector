@@ -53,7 +53,9 @@ public final class ClipboardSource {
         if (clip == null || clip.getItemCount() == 0) {
             return;
         }
-        CharSequence text = clip.getItemAt(0).coerceToText(null);
+        // getText(), not coerceToText(null): coerceToText needs a Context for URI/intent
+        // items and throws NullPointerException without one. Non-text clips are skipped.
+        CharSequence text = clip.getItemAt(0).getText();
         if (text != null) {
             emit(text.toString());
         }

@@ -212,7 +212,7 @@ public final class TtsVoicePickerScreen extends LinearLayout {
     }
 
     private static String displayLanguage(String languageTag) {
-        String display = new Locale(languageTag).getDisplayLanguage();
+        String display = Locale.forLanguageTag(languageTag).getDisplayLanguage();
         return display.isBlank() ? languageTag : display;
     }
 

@@ -19,7 +19,7 @@ jobs:
     # Without this, the default `run:` shell here is `bash -e {0}` - NOT
     # `-o pipefail` - so any `foo | tee bar.log` step (see "Build with
     # Gradle" below) reports success based on `tee`'s exit code, not
-    # `foo`'s. That let a real `./gradlew assembleDebug` failure show as a
+    # `foo`'s. That let a real `gradle assembleDebug` failure show as a
     # green check with no APK and no uploaded logs. Setting pipefail job-wide
     # makes every piped step here fail correctly when the left-hand command does.
     defaults:
@@ -29,33 +29,19 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up JDK 17
+    - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '21'
         distribution: 'temurin'
 
-    # gradlew, gradle-wrapper.jar and gradle-wrapper.properties are committed (see
-    # gradle/wrapper/), so this is the normal wrapper-caching mode: no gradle-version
-    # input, meaning it does NOT provision/force a specific Gradle install. It just
-    # caches dependencies/wrapper downloads around the ./gradlew calls below. This
-    # replaces a previous "provision Gradle live, then run `gradle wrapper` to
-    # (re)generate the wrapper files" setup, which depended on whatever Gradle version
-    # that live provisioning step was pinned to being able to configure this project at
-    # all - a real failure mode here: AGP (app/build.gradle's com.android.application
-    # version, currently 8.6.0) requires Gradle 8.7+, but that step was still pinned to
-    # 8.1.1 (copy-pasted from ARKarium, which deliberately keeps its own AGP at 8.1.1
-    # to match). Configuration failed under 8.1.1 before the wrapper task ever ran, so
-    # gradlew was never written, and "Run unit tests" below - if: always(), so it still
-    # runs - then failed on a missing ./gradlew instead of a clear AGP/Gradle version
-    # error. gradle-wrapper.properties now pins 8.7, AGP 8.6.0's documented minimum
-    # and default, so ./gradlew itself provisions a compatible Gradle with no separate
-    # provisioning/regeneration step needed.
+    # No Gradle wrapper is committed: CI provisions Gradle itself. 8.7 is AGP 8.6.0's
+    # documented minimum and supports running on JDK 21. Bump this together with the
+    # AGP version in build.gradle. This also puts `gradle` on PATH for the steps below.
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x ./gradlew
+      with:
+        gradle-version: '8.7'
 
     - name: Build with Gradle
       # Piped through tee so the full compiler/Gradle output survives into a file we
@@ -64,9 +50,9 @@ jobs:
       # Build Logs on failure" step below only grabbed build/reports and
       # build/outputs/logs, neither of which ever contains this step's stdout. The
       # default bash shell GitHub Actions uses for `run:` already sets `-o pipefail`,
-      # so piping to tee here does NOT swallow gradlew's real exit code - the step
+      # so piping to tee here does NOT swallow gradle's real exit code - the step
       # still fails correctly if the build fails.
-      run: ./gradlew assembleDebug --stacktrace 2>&1 | tee build-output.log
+      run: gradle assembleDebug --stacktrace 2>&1 | tee build-output.log
 
     # Separate step/task/log from assembleDebug above, deliberately `if: always()` -
     # same reasoning as the build step's own pipefail comment: a real
@@ -78,7 +64,7 @@ jobs:
     # notes for MigrationTest.
     - name: Run unit tests
       if: always()
-      run: ./gradlew testDebugUnitTest --stacktrace 2>&1 | tee test-output.log
+      run: gradle testDebugUnitTest --stacktrace 2>&1 | tee test-output.log
 
     # Turns each JUnit XML result into its own GitHub check run with a pass/fail icon
     # per test (a red X on the specific failing test, not just the job's overall
