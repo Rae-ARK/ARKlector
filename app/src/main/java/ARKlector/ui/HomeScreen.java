@@ -109,11 +109,17 @@ public final class HomeScreen extends LinearLayout {
      * stays a dumb renderer and never reads the ViewModel directly.
      */
     public void setPlaybackState(PlaybackState state) {
-        String label = switch (state) {
-            case PlaybackState.Idle ignored -> "Idle";
-            case PlaybackState.Playing playing -> "Playing: " + playing.current().text();
-            case PlaybackState.Paused paused -> "Paused: " + paused.current().text();
-        };
+        // instanceof patterns, not a pattern-matching `switch`: javac compiles the latter
+        // to java.lang.runtime.SwitchBootstraps, which android.jar doesn't contain, so
+        // compileDebugJavaWithJavac crashes with a CompletionFailure.
+        String label;
+        if (state instanceof PlaybackState.Playing playing) {
+            label = "Playing: " + playing.current().text();
+        } else if (state instanceof PlaybackState.Paused paused) {
+            label = "Paused: " + paused.current().text();
+        } else {
+            label = "Idle";
+        }
         statusText.setText(label);
     }
 

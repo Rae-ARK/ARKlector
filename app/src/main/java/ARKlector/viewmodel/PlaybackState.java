@@ -7,6 +7,9 @@ import ARKlector.model.Segment;
  * docs/foundational/design.md rule 4.
  */
 public sealed interface PlaybackState {
+    // Consumers: use instanceof patterns, not `switch` patterns — the latter needs
+    // java.lang.runtime.SwitchBootstraps, which isn't in android.jar (build fails).
+
 
     record Idle() implements PlaybackState {
     }
