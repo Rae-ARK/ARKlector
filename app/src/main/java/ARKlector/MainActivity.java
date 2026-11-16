@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,6 +21,7 @@ import ARKlector.service.ReadingQueueService;
 import ARKlector.service.TtsEngine;
 import ARKlector.ui.HomeScreen;
 import ARKlector.ui.SettingsScreen;
+import ARKlector.ui.Themes.AppTheme;
 import ARKlector.ui.TtsSettingsScreen;
 import ARKlector.ui.TtsVoicePickerScreen;
 import ARKlector.viewmodel.PlaybackState;
@@ -89,6 +91,15 @@ public final class MainActivity extends AppCompatActivity {
         viewModel.setOnSegmentsQueued(this::startPlayback);
 
         container = new FrameLayout(this);
+        container.setBackgroundColor(AppTheme.COLOR_BACKGROUND);
+        // Target SDK 35 draws edge-to-edge, which would put the top bar under the
+        // status bar; pad the container by the system bar insets instead.
+        container.setOnApplyWindowInsetsListener((view, insets) -> {
+            android.graphics.Insets bars = insets.getInsets(
+                    WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return WindowInsets.CONSUMED;
+        });
         setContentView(container);
         showHome();
 
