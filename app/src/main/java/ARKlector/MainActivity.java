@@ -70,6 +70,7 @@ public final class MainActivity extends AppCompatActivity {
         showHome();
 
         viewModel.playbackState().observe(this, this::onPlaybackStateChanged);
+        viewModel.lastClipboardText().observe(this, this::onClipboardContentChanged);
 
         if (Intent.ACTION_SEND.equals(getIntent().getAction())) {
             CharSequence shared = getIntent().getCharSequenceExtra(Intent.EXTRA_TEXT);
@@ -91,6 +92,12 @@ public final class MainActivity extends AppCompatActivity {
                 showSettings();
             }
         });
+        // A fresh HomeScreen starts from its own placeholder defaults; push the
+        // ViewModel's current values in immediately so returning here (e.g. from
+        // Settings) doesn't flash "Idle" / the empty-clipboard placeholder before the
+        // next state change happens to arrive.
+        homeScreen.setPlaybackState(viewModel.playbackState().getValue());
+        homeScreen.setContent(viewModel.lastClipboardText().getValue());
         container.removeAllViews();
         container.addView(homeScreen);
     }
@@ -138,6 +145,12 @@ public final class MainActivity extends AppCompatActivity {
     private void onPlaybackStateChanged(PlaybackState state) {
         if (homeScreen != null) {
             homeScreen.setPlaybackState(state);
+        }
+    }
+
+    private void onClipboardContentChanged(String text) {
+        if (homeScreen != null) {
+            homeScreen.setContent(text);
         }
     }
 

@@ -25,6 +25,16 @@ public final class ReaderViewModel extends ViewModel {
     private final ReadingQueueService queueService;
     private final MutableLiveData<PlaybackState> playbackState = new MutableLiveData<>(new PlaybackState.Idle());
 
+    /**
+     * The cleaned text of the most recently retrieved clipboard entry — what
+     * {@code HomeScreen}'s content area fills in with after the clipboard icon is
+     * tapped. Holds the normalized text regardless of whether it produced any segments
+     * (e.g. a clipboard with only whitespace), so the screen always reflects what was
+     * actually retrieved. {@code null} until the first clipboard read of this
+     * ViewModel's lifetime.
+     */
+    private final MutableLiveData<String> lastClipboardText = new MutableLiveData<>(null);
+
     public ReaderViewModel(ClipboardSource clipboardSource, ReadingQueueService queueService) {
         this.clipboardSource = clipboardSource;
         this.queueService = queueService;
@@ -35,12 +45,17 @@ public final class ReaderViewModel extends ViewModel {
         return playbackState;
     }
 
+    public LiveData<String> lastClipboardText() {
+        return lastClipboardText;
+    }
+
     public void readClipboardNow() {
         clipboardSource.readNow();
     }
 
     private void onClipboardText(String raw) {
         String clean = TextNormalizer.clean(raw);
+        lastClipboardText.setValue(clean);
         Locale locale = TextNormalizer.detectLanguage(clean);
         List<Segment> segments = Segmenter.split(clean, locale, MAX_UTTERANCE_CHARS);
         if (!segments.isEmpty()) {
