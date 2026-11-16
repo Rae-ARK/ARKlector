@@ -25,7 +25,7 @@
 
 A Read Aloud app which takes content from clipboard and using TTS reads aloud.
 
-> [!STATUS]
+> **🚧 STATUS**
 > Early development. ALpha Stage.
 > Follow the installation and release links from these official sources. A similar
 > repository name or copied README does not establish that a download is official.
