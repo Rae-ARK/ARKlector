@@ -41,9 +41,8 @@ Obtainium allows users to install and track Android applications directly from t
 
 Alternatively, download the latest release directly from [GitHub Releases](https://github.com/Rae-ARK/ARKlector/releases/).
 
-## Status
-
-Early development. ALpha Stage.
+> [! Status]
+> Early development. ALpha Stage.
 
 ## License
 
