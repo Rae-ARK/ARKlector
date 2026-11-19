@@ -25,6 +25,7 @@
 
 A Read Aloud app which takes content from clipboard and using TTS reads aloud.
 
+> [!NOTE]
 > **🚧 STATUS**
 > 
 > Early development. ALpha Stage.
@@ -54,8 +55,11 @@ Alternatively, download the latest release directly from [GitHub Releases](https
 
 [![Proprietary](https://img.shields.io/badge/License-Proprietary-8B0000?style=flat)](LICENSE)
 
-Copyright © 2026 Rae-ARK. All rights reserved.
-
-This software and its source code are proprietary.
-
-No permission is granted to copy, modify, distribute, sublicense, or use this software or its source code, in whole or in part, without prior written permission from the copyright holder.
+> [! WARNING]
+> Copyright © 2026 Rae-ARK. All rights reserved.
+>
+> This software and its source code are proprietary.
+>
+> No permission is granted to copy, modify, distribute, sublicense, or
+> use this software or its source code, in whole or in part, without
+> prior written permission from the copyright holder.
