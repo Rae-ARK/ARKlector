@@ -55,7 +55,7 @@ Alternatively, download the latest release directly from [GitHub Releases](https
 
 [![Proprietary](https://img.shields.io/badge/License-Proprietary-8B0000?style=flat)](LICENSE)
 
-> [! WARNING]
+> [!WARNING]
 > Copyright © 2026 Rae-ARK. All rights reserved.
 >
 > This software and its source code are proprietary.
